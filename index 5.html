@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#eef0f6;
+    --panel:#e3e7f1;
+    --surface:#ffffff;
+    --ink:#1b2240;
+    --muted:#5d6585;
+    --line:#cdd3e4;
+    --accent:#3b4bdb;
+    --accent-ink:#ffffff;
+    --danger:#b3261e;
+    --ui:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+    --read:"Source Serif 4",Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:16px;line-height:1.5}
+  button,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+  .app{display:grid;grid-template-columns:290px 1fr;height:100%;height:100dvh}
+
+  /* sidebar */
+  .side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+  .brand{padding:18px 18px 10px;font-weight:700;font-size:20px;letter-spacing:-.01em}
+  .brand small{display:block;font-weight:400;font-size:13px;color:var(--muted);letter-spacing:0}
+  .new{margin:8px 14px 12px;padding:11px 14px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:600;text-align:left}
+  .new:hover{filter:brightness(1.08)}
+  .list{flex:1;overflow:auto;padding:0 8px;min-height:0}
+  .item{display:flex;align-items:center;gap:4px;border-radius:8px;padding:2px 4px 2px 10px}
+  .item:hover{background:rgba(255,255,255,.55)}
+  .item.on{background:var(--surface);box-shadow:inset 3px 0 0 var(--accent)}
+  .item .t{flex:1;min-width:0;text-align:left;background:none;border:0;padding:8px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+  .item .x{background:none;border:0;color:var(--muted);padding:6px 8px;border-radius:6px;font-size:18px;line-height:1}
+  .item .x:hover{color:var(--danger);background:rgba(179,38,30,.08)}
+  .empty-list{padding:10px 12px;color:var(--muted);font-size:14px}
+
+  .acct{border-top:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:10px}
+  .who{display:flex;align-items:center;gap:10px;min-width:0}
+  .who img{width:34px;height:34px;border-radius:50%}
+  .who .n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .who .e{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hint{font-size:13px;color:var(--muted)}
+  .hint.warn{color:var(--danger)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .ghost{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
+  .ghost:hover{border-color:var(--accent)}
+
+  /* main */
+  .main{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .top{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--paper)}
+  .menu{display:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .top label{font-size:13px;color:var(--muted)}
+  select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:100%}
+  .status{margin-left:auto;font-size:13px;color:var(--muted);text-align:right}
+  .bar{height:3px;background:var(--line);display:none}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+
+  .scroll{flex:1;overflow:auto;min-height:0;padding:28px 20px}
+  .thread{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+  .msg.user{align-self:flex-end;max-width:85%;background:var(--accent);color:var(--accent-ink);padding:10px 15px;border-radius:16px 16px 4px 16px;white-space:pre-wrap;word-wrap:break-word}
+  .msg.assistant{font-family:var(--read);font-size:18px;line-height:1.65;word-wrap:break-word}
+  .msg.assistant pre{background:var(--ink);color:#e9ecfb;padding:14px;border-radius:10px;overflow:auto;font-size:14px;line-height:1.5}
+  .msg.assistant code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;background:rgba(59,75,219,.1);padding:1px 5px;border-radius:4px}
+  .msg.assistant pre code{background:none;padding:0}
+  .cursor::after{content:"";display:inline-block;width:8px;height:1em;background:var(--accent);margin-left:3px;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.cursor::after{animation:none}}
+
+  .welcome{max-width:560px;margin:8vh auto 0;text-align:left}
+  .welcome h1{font-size:34px;line-height:1.15;letter-spacing:-.02em;margin:0 0 10px}
+  .welcome p{font-family:var(--read);font-size:18px;color:var(--muted);margin:0 0 10px}
+
+  .composer{padding:12px 20px 20px;background:var(--paper)}
+  .box{max-width:720px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 8px 8px 14px}
+  .box:focus-within{border-color:var(--accent)}
+  textarea{flex:1;border:0;outline:0;resize:none;background:none;max-height:180px;padding:8px 0;line-height:1.4}
+  .send{border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:600;padding:10px 16px}
+  .send:disabled{opacity:.45;cursor:not-allowed}
+  .send.stop{background:var(--ink)}
+  .foot{max-width:720px;margin:8px auto 0;font-size:12px;color:var(--muted)}
+
+  .scrim{display:none}
+  .main{grid-column:2}
+  .side{grid-column:1}
+
+  @media (max-width:760px){
+    .main{grid-column:1}
+    .side{grid-column:auto}
+    .app{grid-template-columns:1fr}
+    .side{position:fixed;inset:0 20% 0 0;z-index:20;transform:translateX(-100%);transition:transform .2s;box-shadow:4px 0 24px rgba(27,34,64,.25)}
+    .app.open .side{transform:none}
+    .scrim{display:none;position:fixed;inset:0;background:rgba(27,34,64,.35);z-index:10}
+    .app.open .scrim{display:block}
+    .menu{display:block}
+    .scroll{padding:20px 14px}
+    .composer{padding:10px 12px 14px}
+    .welcome h1{font-size:28px}
+  }
+  @media (prefers-reduced-motion:reduce){.side{transition:none}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side">
+    <div class="brand">Local Chat<small>Runs in your browser. Free.</small></div>
+    <button class="new" id="newChat">New chat</button>
+    <nav class="list" id="list" aria-label="Saved conversations"></nav>
+    <div class="acct" id="acct"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <section class="main">
+    <header class="top">
+      <button class="menu" id="menu" aria-label="Open conversations">Chats</button>
+      <label for="model">Model</label>
+      <select id="model"></select>
+      <div class="status" id="status">Model not loaded</div>
+    </header>
+    <div class="bar" id="bar"><i id="barfill"></i></div>
+
+    <div class="scroll" id="scroll">
+      <div class="thread" id="thread"></div>
+    </div>
+
+    <div class="composer">
+      <div class="box">
+        <textarea id="input" rows="1" placeholder="Write a message" aria-label="Message"></textarea>
+        <button class="send" id="send">Send</button>
+      </div>
+      <div class="foot" id="foot"></div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+/* ============================================================
+   SETTINGS: edit these two things
+   ============================================================ */
+
+// 1) Paste your Google OAuth Client ID here (see README steps).
+//    Leave as-is to run without Google sign-in (guest mode still saves chats).
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
+// 2) Models offered in the dropdown (all free, run on the visitor's device).
+//    IDs come from the WebLLM model list.
+const MODELS = [
+  { id: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC", label: "Tiny (fastest, ~0.4 GB)" },
+  { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", label: "Small (~0.9 GB)" },
+  { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC", label: "Medium (smarter, ~2.3 GB)" },
+];
+
+const SYSTEM_PROMPT = "You are a helpful, friendly assistant. Answer clearly and concisely.";
+const MAX_HISTORY = 20; // messages sent to the model each turn
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const isConfigured = !GOOGLE_CLIENT_ID.startsWith("YOUR_");
+
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function fmt(text){
+  return text.split("```").map((p,i)=>{
+    if(i%2===1){
+      const nl = p.indexOf("\n");
+      const code = nl>-1 ? p.slice(nl+1) : p;
+      return `<pre><code>${esc(code.replace(/\n$/,""))}</code></pre>`;
+    }
+    return esc(p)
+      .replace(/`([^`\n]+)`/g,"<code>$1</code>")
+      .replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>")
+      .replace(/\n/g,"<br>");
+  }).join("");
+}
+
+/* ============================================================
+   Storage (per Google account, or "guest")
+   ============================================================ */
+const USER_KEY = "localchat:user";
+let user = null;
+try { user = JSON.parse(localStorage.getItem(USER_KEY) || "null"); } catch {}
+const chatsKey = (u = user) => "localchat:chats:" + (u ? u.sub : "guest");
+
+function loadChats(u = user){
+  try { return JSON.parse(localStorage.getItem(chatsKey(u)) || "[]"); } catch { return []; }
+}
+let chats = loadChats();
+let activeId = null;
+function saveChats(){
+  try { localStorage.setItem(chatsKey(), JSON.stringify(chats)); }
+  catch { setStatus("Could not save: browser storage is full or blocked."); }
+}
+const active = () => chats.find(c => c.id === activeId);
+
+/* ============================================================
+   UI: sidebar, thread
+   ============================================================ */
+function renderList(){
+  const list = $("list");
+  list.innerHTML = "";
+  if(!chats.length){
+    list.innerHTML = '<div class="empty-list">Your conversations will appear here.</div>';
+    return;
+  }
+  [...chats].sort((a,b)=>b.updated-a.updated).forEach(c=>{
+    const row = document.createElement("div");
+    row.className = "item" + (c.id===activeId ? " on" : "");
+    const t = document.createElement("button");
+    t.className = "t"; t.textContent = c.title; t.title = c.title;
+    t.onclick = () => { openChat(c.id); closeMenu(); };
+    const x = document.createElement("button");
+    x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label","Delete conversation");
+    x.onclick = () => {
+      if(!confirm("Delete this conversation?")) return;
+      chats = chats.filter(k => k.id !== c.id);
+      if(activeId === c.id) activeId = null;
+      saveChats(); renderList(); renderThread();
+    };
+    row.append(t,x);
+    list.append(row);
+  });
+}
+
+function renderThread(){
+  const th = $("thread");
+  th.innerHTML = "";
+  const c = active();
+  if(!c || !c.messages.length){
+    th.innerHTML = `<div class="welcome">
+      <h1>Ask anything. It runs on your device.</h1>
+      <p>The first message downloads a small language model to your browser, which takes a minute. After that it is cached and starts quickly.</p>
+      <p>${user ? "Your chats are saved to your Google account on this browser." : "Your chats are saved in this browser. Sign in with Google to keep them tied to your account."}</p>
+    </div>`;
+    return;
+  }
+  c.messages.forEach(m => th.append(bubble(m.role, m.content)));
+  scrollDown();
+}
+function bubble(role, text){
+  const d = document.createElement("div");
+  d.className = "msg " + role;
+  if(role === "assistant") d.innerHTML = fmt(text); else d.textContent = text;
+  return d;
+}
+function scrollDown(){ const s = $("scroll"); s.scrollTop = s.scrollHeight; }
+
+function openChat(id){ activeId = id; renderList(); renderThread(); }
+function newChat(){
+  const c = { id: uid(), title: "New chat", messages: [], updated: Date.now() };
+  chats.push(c); activeId = c.id;
+  saveChats(); renderList(); renderThread();
+  $("input").focus();
+}
+
+function closeMenu(){ $("app").classList.remove("open"); }
+$("menu").onclick = () => $("app").classList.add("open");
+$("scrim").onclick = closeMenu;
+$("newChat").onclick = () => { newChat(); closeMenu(); };
+
+/* ============================================================
+   Account panel + Google sign-in
+   ============================================================ */
+function renderAccount(){
+  const a = $("acct");
+  a.innerHTML = "";
+  if(user){
+    const w = document.createElement("div");
+    w.className = "who";
+    const img = document.createElement("img");
+    img.alt = ""; img.referrerPolicy = "no-referrer"; img.src = user.picture || "";
+    const box = document.createElement("div"); box.style.minWidth = 0;
+    box.innerHTML = '<div class="n"></div><div class="e"></div>';
+    box.querySelector(".n").textContent = user.name || "Signed in";
+    box.querySelector(".e").textContent = user.email || "";
+    w.append(img, box); a.append(w);
+    a.append(button("Sign out", signOut));
+  } else if(isConfigured){
+    const slot = document.createElement("div"); slot.id = "gbtn"; a.append(slot);
+    const h = document.createElement("div"); h.className = "hint";
+    h.textContent = "Sign in to keep your chats under your account. Guest chats stay on this browser.";
+    a.append(h);
+    renderGoogleButton();
+  } else {
+    const h = document.createElement("div"); h.className = "hint warn";
+    h.textContent = "Google sign-in is off. Add your Client ID in index.html to turn it on. Chats are still saved as a guest.";
+    a.append(h);
+  }
+  const row = document.createElement("div"); row.className = "row";
+  row.append(button("Export", exportChats), button("Import", importChats));
+  a.append(row);
+}
+function button(label, fn){
+  const b = document.createElement("button");
+  b.className = "ghost"; b.textContent = label; b.onclick = fn; return b;
+}
+
+function decodeJwt(token){
+  const b64 = token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+  const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function onCredential(resp){
+  let p;
+  try { p = decodeJwt(resp.credential); } catch { setStatus("Sign-in failed. Try again."); return; }
+  const guest = loadChats(null);
+  user = { sub: p.sub, name: p.name, email: p.email, picture: p.picture };
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  chats = loadChats();
+  if(guest.length && confirm(`Move your ${guest.length} guest conversation(s) into this account?`)){
+    chats = chats.concat(guest);
+    localStorage.removeItem(chatsKey(null));
+    saveChats();
+  }
+  activeId = null;
+  renderAccount(); renderList(); renderThread();
+}
+
+function signOut(){
+  if(window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+  user = null; localStorage.removeItem(USER_KEY);
+  chats = loadChats(); activeId = null;
+  renderAccount(); renderList(); renderThread();
+}
+
+let gsiReady = false;
+function renderGoogleButton(){
+  if(!gsiReady || !$("gbtn")) return;
+  google.accounts.id.renderButton($("gbtn"), { theme:"outline", size:"large", text:"signin_with", shape:"rectangular", width:230 });
+}
+if(isConfigured){
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client"; s.async = true; s.defer = true;
+  s.onload = () => {
+    google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onCredential });
+    gsiReady = true; renderGoogleButton();
+  };
+  document.head.append(s);
+}
+
+/* ============================================================
+   Export / import (move chats between devices)
+   ============================================================ */
+function exportChats(){
+  const blob = new Blob([JSON.stringify(chats, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "local-chat-export.json"; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importChats(){
+  const f = document.createElement("input"); f.type = "file"; f.accept = "application/json";
+  f.onchange = async () => {
+    try {
+      const data = JSON.parse(await f.files[0].text());
+      if(!Array.isArray(data)) throw 0;
+      const have = new Set(chats.map(c => c.id));
+      data.forEach(c => { if(c && c.id && Array.isArray(c.messages) && !have.has(c.id)) chats.push(c); });
+      saveChats(); renderList();
+    } catch { alert("That file is not a valid chat export."); }
+  };
+  f.click();
+}
+
+/* ============================================================
+   Model (WebLLM, runs fully in the browser)
+   ============================================================ */
+let webllm = null, engine = null, loadedModel = null, busy = false;
+
+const sel = $("model");
+MODELS.forEach(m => { const o = document.createElement("option"); o.value = m.id; o.textContent = m.label; sel.append(o); });
+sel.value = localStorage.getItem("localchat:model") || MODELS[1].id;
+sel.onchange = () => localStorage.setItem("localchat:model", sel.value);
+
+function setStatus(t){ $("status").textContent = t; }
+
+async function ensureEngine(){
+  if(!("gpu" in navigator)){
+    throw new Error("This browser has no WebGPU. Use a recent Chrome, Edge or Safari on a desktop or recent phone.");
+  }
+  const want = sel.value;
+  if(engine && loadedModel === want) return;
+  const bar = $("bar"), fill = $("barfill");
+  bar.style.display = "block"; fill.style.width = "0";
+  const onProgress = (p) => {
+    fill.style.width = Math.round((p.progress || 0) * 100) + "%";
+    setStatus(p.text ? p.text.slice(0, 70) : "Loading model");
+  };
+  try {
+    if(!webllm){ setStatus("Loading engine"); webllm = await import("https://esm.run/@mlc-ai/web-llm"); }
+    if(!engine){
+      engine = await webllm.CreateMLCEngine(want, { initProgressCallback: onProgress });
+    } else {
+      engine.setInitProgressCallback(onProgress);
+      await engine.reload(want);
+    }
+    loadedModel = want;
+    setStatus("Ready");
+  } finally {
+    bar.style.display = "none";
+  }
+}
+
+/* ============================================================
+   Sending messages
+   ============================================================ */
+const input = $("input"), sendBtn = $("send");
+input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; });
+input.addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); onSend(); } });
+sendBtn.onclick = onSend;
+
+function setBusy(b){
+  busy = b;
+  sendBtn.textContent = b ? "Stop" : "Send";
+  sendBtn.classList.toggle("stop", b);
+}
+
+async function onSend(){
+  if(busy){ engine?.interruptGenerate(); return; }
+  const text = input.value.trim();
+  if(!text) return;
+  if(!active()) newChat();
+  const c = active();
+  input.value = ""; input.style.height = "auto";
+
+  c.messages.push({ role: "user", content: text });
+  if(c.title === "New chat") c.title = text.length > 40 ? text.slice(0, 40) + "…" : text;
+  c.updated = Date.now();
+  saveChats(); renderList(); renderThread();
+
+  const out = bubble("assistant", ""); out.classList.add("cursor");
+  $("thread").append(out); scrollDown();
+  setBusy(true);
+
+  let reply = "";
+  try {
+    await ensureEngine();
+    setStatus("Thinking");
+    const msgs = [{ role: "system", content: SYSTEM_PROMPT }, ...c.messages.slice(-MAX_HISTORY)];
+    const stream = await engine.chat.completions.create({ messages: msgs, stream: true, temperature: 0.7 });
+    for await (const chunk of stream){
+      reply += chunk.choices[0]?.delta?.content || "";
+      out.innerHTML = fmt(reply);
+      scrollDown();
+    }
+    setStatus("Ready");
+  } catch (err){
+    const msg = (err && err.message) ? err.message : String(err);
+    out.innerHTML = fmt(reply) + `<p style="color:var(--danger);font-family:var(--ui);font-size:15px">${esc(msg)}</p>`;
+    setStatus("Error");
+  } finally {
+    out.classList.remove("cursor");
+    if(reply){
+      c.messages.push({ role: "assistant", content: reply });
+      c.updated = Date.now();
+      saveChats(); renderList();
+    }
+    setBusy(false);
+  }
+}
+
+/* ============================================================
+   Start
+   ============================================================ */
+$("foot").textContent = "Answers come from a small model on your device and can be wrong. Nothing you type is sent to a server.";
+renderAccount();
+chats.length ? openChat([...chats].sort((a,b)=>b.updated-a.updated)[0].id) : (renderList(), renderThread());
+</script>
+</body>
+</html>
